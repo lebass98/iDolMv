@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Disc3, Download, FolderOpen, History, ListMusic, Moon, Play, Search, Settings, Sun, Users } from "lucide-react";
-import { cancelDownload, initEngine, isAndroid, revealFile, search4k, startDownload } from "./backend";
+import { cancelDownload, initEngine, isAndroid, isMac, revealFile, search4k, startDownload } from "./backend";
 import HistoryView, { type HistoryItem } from "./components/HistoryView";
 import SettingsView from "./components/SettingsView";
 import ChartPanel, { visibleArtists, type ArtistSort } from "./components/ChartPanel";
@@ -620,7 +620,7 @@ export default function App() {
   return (
     <div className={`app-bg flex h-screen flex-col ${isAndroid ? "pt-[max(env(safe-area-inset-top),28px)]" : ""}`}>
       {/* 타이틀바 (창 이동) */}
-      <div data-tauri-drag-region className={`flex h-14 shrink-0 items-center gap-3 pr-4 ${isAndroid ? "pl-4" : "pl-[88px]"}`}>
+      <div data-tauri-drag-region className={`flex h-14 shrink-0 items-center gap-3 pr-4 ${isMac ? "pl-[88px]" : "pl-4"}`}>
         <div data-tauri-drag-region className="flex h-8 w-8 items-center justify-center rounded-full bg-accent shadow-md shadow-accent/30">
           <Play className="ml-0.5 h-4 w-4 fill-white text-white" />
         </div>

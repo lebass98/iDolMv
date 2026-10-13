@@ -4,6 +4,7 @@
 
 - **맥:** Tauri v2 데스크톱 앱 (DMG)
 - **안드로이드:** 같은 코드로 만든 APK. 휴대폰·폴드 펼침·태블릿 화면에 맞춰 배치가 바뀝니다.
+- **윈도우:** GitHub Actions에서 설치 파일(.exe)을 빌드해 [Releases](../../releases/tag/windows-latest)에 올립니다.
 
 ## 기능
 
@@ -58,6 +59,17 @@ bash scripts/android-build.sh debug    # 디버그
 
 소스를 `~/build/idol-mobile`로 동기화한 뒤 거기서 빌드하고, 결과를 프로젝트 상위 폴더에 `IdolMV4K-android.apk`로 복사합니다.
 
+### 윈도우
+
+`main` 브랜치에 올리면 GitHub Actions(`.github/workflows/windows.yml`)가 자동으로:
+
+1. `scripts/prepare-tools-win.ps1` — 공식 배포처에서 yt-dlp.exe·ffmpeg.exe·deno.exe를 받아 `src-tauri/tools-win`에 준비
+2. `scripts/smoke-test-win.ps1` — 앱과 같은 옵션으로 4K 검색과 앞 5초 다운로드 확인 (빌드 서버 IP를 유튜브가 막으면 실패할 수 있어 결과만 기록)
+3. `npx tauri build` — NSIS 설치 파일 생성 (`src-tauri/tauri.windows.conf.json`)
+4. Releases의 `windows-latest`에 `IdolMV4K-windows-setup.exe`로 올림
+
+윈도우 PC에서 직접 빌드할 때는 `pwsh scripts/prepare-tools-win.ps1` 후 `npx tauri build`.
+
 ## 참고
 
 - 받은 뮤직비디오는 저작권이 있으니 개인 소장 용도로만 쓰세요.
@@ -65,6 +77,11 @@ bash scripts/android-build.sh debug    # 디버그
 - 차트 사이트 구조가 바뀌면 `chart.rs` / `circle.rs`를 고쳐야 합니다.
 
 ## 변경 기록
+
+### 2026-10-14 (윈도우)
+- 윈도우 지원: 탐색기에서 보기, taskkill로 취소, 실행 시 콘솔 창 숨김, `.exe` 도구 경로
+- GitHub Actions 윈도우 빌드·도구 동작 확인·Releases 자동 업로드
+- 타이틀바 왼쪽 여백(맥 신호등 버튼 자리)은 맥에서만
 
 ### 2026-10-14
 - 안드로이드 APK 지원: youtubedl-android 기반 Kotlin 플러그인, 휴대폰용 아래 탭 화면

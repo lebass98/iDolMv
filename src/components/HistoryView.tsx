@@ -1,3 +1,4 @@
+import { revealLabel } from "../backend";
 import { FolderSearch, History, Trash2, X } from "lucide-react";
 
 export interface HistoryItem {
@@ -72,7 +73,7 @@ export default function HistoryView({ items, onReveal, onRemove, onClear }: Prop
                       onClick={() => onReveal(h.path)}
                       className="ml-auto flex items-center gap-1 font-semibold text-accent hover:underline"
                     >
-                      <FolderSearch className="h-3.5 w-3.5" /> Finder에서 보기
+                      <FolderSearch className="h-3.5 w-3.5" /> {revealLabel}
                     </button>
                   </div>
                 </div>

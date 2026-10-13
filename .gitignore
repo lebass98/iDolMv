@@ -17,3 +17,6 @@ plugins/*/permissions/schemas/
 *.dmg
 *.keystore
 *.jks
+
+# 윈도우 도구 (빌드 때 scripts/prepare-tools-win.ps1로 받음)
+src-tauri/tools-win/

@@ -7,7 +7,7 @@ use crate::{log, tools};
 use serde::Serialize;
 use serde_json::Value;
 use std::io::{BufRead, BufReader};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use tauri::{AppHandle, Emitter};
 
 #[derive(Serialize, Clone)]
@@ -43,10 +43,11 @@ pub async fn search_4k(app: AppHandle, artist: String, query: String, count: u32
         let query = format!("ytsearch{}:{}", count.clamp(1, 20), query);
         log(&app, format!("🔎 검색: \"{query}\""));
 
-        let mut child = Command::new(&t.ytdlp)
+        let mut child = tools::command(&t.ytdlp)
             .args(["-j", "--no-warnings", "--no-playlist", "--ignore-errors"])
             .arg("--js-runtimes")
             .arg(format!("deno:{}", t.deno.display()))
+            .args(if cfg!(windows) { &["--remote-components", "ejs:github"][..] } else { &[][..] })
             .arg(&query)
             .stdout(Stdio::piped())
             .stderr(Stdio::null())

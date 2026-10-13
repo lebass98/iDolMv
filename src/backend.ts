@@ -9,6 +9,11 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import type { MvResult } from "./types";
 
 export const isAndroid = /Android/i.test(navigator.userAgent);
+export const isWindows = /Windows/i.test(navigator.userAgent);
+export const isMac = !isAndroid && /Mac/i.test(navigator.userAgent);
+
+/** 받은 파일 보기 버튼 문구 */
+export const revealLabel = isAndroid ? "열기" : isWindows ? "탐색기에서 보기" : "Finder에서 보기";
 
 interface DownloadHandlers {
   onProgress: (p: { percent: number; speed: string; eta: string; stage: string }) => void;

@@ -1,0 +1,65 @@
+# 윈도우 설치 파일(.exe) 빌드 → GitHub Releases "windows-latest"에 올림
+name: Windows 빌드
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: 의존성 설치
+        run: npm ci
+
+      # 맥 개발 환경용 빌드 폴더 설정(.cargo/config.toml)은 윈도우 서버에서 쓰지 않음
+      - name: 맥 전용 설정 제거
+        shell: pwsh
+        run: Remove-Item -Force src-tauri/.cargo/config.toml -ErrorAction SilentlyContinue
+
+      - name: yt-dlp·ffmpeg·deno 준비
+        shell: pwsh
+        run: ./scripts/prepare-tools-win.ps1
+
+      # 빌드 서버 IP는 유튜브가 막을 수 있어서 실패해도 빌드는 계속함
+      - name: 도구 동작 확인 (4K 검색·다운로드)
+        id: smoke
+        continue-on-error: true
+        shell: pwsh
+        run: ./scripts/smoke-test-win.ps1
+
+      - name: 앱 빌드
+        run: npx tauri build
+
+      - name: 설치 파일 이름 정리
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem src-tauri/target/release/bundle/nsis -Filter *.exe | Select-Object -First 1
+          Copy-Item $exe.FullName IdolMV4K-windows-setup.exe
+          "도구 확인 결과: ${{ steps.smoke.outcome }}" | Out-File -Encoding utf8 release-notes.md
+
+      - name: Releases에 올리기
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: windows-latest
+          name: 윈도우 최신 빌드
+          prerelease: true
+          body_path: release-notes.md
+          files: IdolMV4K-windows-setup.exe

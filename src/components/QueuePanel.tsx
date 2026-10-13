@@ -1,3 +1,4 @@
+import { revealLabel } from "../backend";
 import { useEffect, useRef, useState } from "react";
 import {
   CheckCircle2,
@@ -171,7 +172,7 @@ export default function QueuePanel(p: Props) {
                   </button>
                 )}
                 {j.path && (
-                  <button onClick={() => p.onReveal(j.path!)} title="Finder에서 보기" className="text-muted hover:text-fg">
+                  <button onClick={() => p.onReveal(j.path!)} title={revealLabel} className="text-muted hover:text-fg">
                     <FolderSearch className="h-4 w-4" />
                   </button>
                 )}

@@ -54,7 +54,7 @@ pub fn start_download(app: AppHandle, running: State<'_, Running>, req: Download
     std::fs::create_dir_all(&req.folder).map_err(|e| format!("저장 폴더를 만들 수 없음: {e}"))?;
 
     let container = if req.container == "mkv" { "mkv" } else { "mp4" };
-    let mut cmd = Command::new(&t.ytdlp);
+    let mut cmd = tools::command(&t.ytdlp);
     cmd.args([
         "--no-playlist",
         "--no-quiet", // --print가 켜는 조용한 모드를 끔 (단계 표시용 줄 필요)
@@ -84,6 +84,7 @@ pub fn start_download(app: AppHandle, running: State<'_, Running>, req: Download
     .arg(&t.ffmpeg)
     .arg("--js-runtimes")
     .arg(format!("deno:{}", t.deno.display()))
+    .args(if cfg!(windows) { &["--remote-components", "ejs:github"][..] } else { &[][..] })
     .arg("-o")
     // 파일 이름에 영상 ID를 넣어 "이미 받은 영상" 확인에 사용
     .arg(format!("{}/%(title)s [%(id)s].%(ext)s", req.folder))
@@ -177,19 +178,34 @@ pub fn start_download(app: AppHandle, running: State<'_, Running>, req: Download
 #[tauri::command]
 pub fn cancel_download(running: State<'_, Running>, id: String) {
     if let Some(pid) = running.0.lock().unwrap().remove(&id) {
-        let _ = Command::new("pkill").args(["-TERM", "-P", &pid.to_string()]).status();
-        let _ = Command::new("kill").args(["-TERM", &pid.to_string()]).status();
+        #[cfg(windows)]
+        {
+            // /T: 자식 프로세스(ffmpeg)까지, /F: 강제 종료
+            let _ = tools::command("taskkill").args(["/T", "/F", "/PID", &pid.to_string()]).status();
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = Command::new("pkill").args(["-TERM", "-P", &pid.to_string()]).status();
+            let _ = Command::new("kill").args(["-TERM", &pid.to_string()]).status();
+        }
     }
 }
 
 #[tauri::command]
 pub fn reveal_in_finder(path: String) {
+    // 맥: Finder / 윈도우: 탐색기에서 파일 선택
+    #[cfg(windows)]
+    let _ = Command::new("explorer").arg(format!("/select,{}", path.replace('/', "\\"))).spawn();
+    #[cfg(not(windows))]
     let _ = Command::new("open").args(["-R", &path]).spawn();
 }
 
 #[tauri::command]
 pub fn open_folder(path: String) {
     let _ = std::fs::create_dir_all(&path);
+    #[cfg(windows)]
+    let _ = Command::new("explorer").arg(path.replace('/', "\\")).spawn();
+    #[cfg(not(windows))]
     let _ = Command::new("open").arg(&path).spawn();
 }
 
