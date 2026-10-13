@@ -13,9 +13,9 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -45,8 +45,15 @@ jobs:
         shell: pwsh
         run: ./scripts/smoke-test-win.ps1
 
+      # 실패하면 로그 마지막 부분을 오류 요약(annotation)으로 남김 → 로그인 없이도 원인 확인 가능
       - name: 앱 빌드
-        run: npx tauri build
+        shell: pwsh
+        run: |
+          npx tauri build 2>&1 | Tee-Object -FilePath build.log
+          if ($LASTEXITCODE -ne 0) {
+            Get-Content build.log -Tail 40 | Where-Object { $_.Trim() } | ForEach-Object { "::error::$_" }
+            exit 1
+          }
 
       - name: 설치 파일 이름 정리
         shell: pwsh
