@@ -1,0 +1,3 @@
+# 외장하드(exFAT)의 ._ 숨김 파일 문제를 피하려고 빌드 결과물은 내장 디스크에 둠
+[build]
+target-dir = "/Users/kmac4_home/build/yt-idol-target"

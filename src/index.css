@@ -1,0 +1,134 @@
+@import "tailwindcss";
+
+/* ───────────── 색 체계 (다크 기본, html.light에서 화이트) ─────────────
+   bg-app     창 바탕
+   bg-panel   큰 패널 (메뉴·차트·검색결과·다운로드)
+   bg-surface 패널 안 카드
+   bg-inset   입력창·세그먼트 바탕
+   border-line 구분선
+   text-fg / text-muted  글자
+   accent     파란 강조 */
+@theme {
+  --color-app: #0b1222;
+  --color-panel: #121b2d;
+  --color-surface: #182339;
+  --color-inset: #0f1729;
+  --color-line: rgb(255 255 255 / 0.08);
+  --color-fg: #e8edf6;
+  --color-muted: #8c97ac;
+  --color-accent: #2f7bf6;
+  --color-accent-soft: rgb(47 123 246 / 0.16);
+  --color-ink: #ffffff;
+}
+
+html {
+  color-scheme: dark;
+}
+html.light {
+  color-scheme: light;
+  --color-app: #e9eef6;
+  --color-panel: #ffffff;
+  --color-surface: #f4f7fc;
+  --color-inset: #f1f4f9;
+  --color-line: rgb(15 23 42 / 0.08);
+  --color-fg: #111827;
+  --color-muted: #6b7385;
+  --color-accent: #2f7bf6;
+  --color-accent-soft: rgb(47 123 246 / 0.1);
+  --color-ink: #000000;
+}
+
+html,
+body {
+  @apply bg-app text-fg antialiased select-none;
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+}
+
+.app-bg {
+  background: linear-gradient(160deg, #0d1528, #0a1120 60%, #0c1424);
+}
+html.light .app-bg {
+  background: linear-gradient(160deg, #eef2f9, #e6ecf5 60%, #edf1f8);
+}
+
+/* 패널: 둥근 모서리 + 얇은 테두리 + 부드러운 그림자 */
+.panel {
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.18);
+}
+html.light .panel {
+  box-shadow: 0 6px 24px rgb(30 50 90 / 0.07);
+}
+
+/* 패널 안 카드 */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+}
+
+/* 입력창·세그먼트 */
+.field {
+  background: var(--color-inset);
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+}
+
+/* 파란 강조 버튼 */
+.btn-accent {
+  background: var(--color-accent);
+  color: #fff;
+  border-radius: 9999px;
+  box-shadow: 0 4px 14px rgb(47 123 246 / 0.35), inset 0 1px 0 rgb(255 255 255 / 0.25);
+  transition: filter 0.15s, transform 0.15s;
+}
+.btn-accent:hover {
+  filter: brightness(1.08);
+}
+.btn-accent:active {
+  transform: scale(0.98);
+}
+.btn-accent:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+}
+
+/* 테두리 있는 보조 버튼 */
+.btn-ghost {
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  transition: background 0.15s;
+}
+.btn-ghost:hover {
+  background: var(--color-surface);
+}
+
+/* 스크롤바 */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(127 127 127 / 0.3);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+input,
+select {
+  @apply select-text;
+}
+
+/* 화이트 모드 글자색 대비 보정 */
+html.light .text-red-300,
+html.light .text-red-400 { color: #dc2626; }
+html.light .text-emerald-400 { color: #059669; }
+html.light .text-sky-400 { color: #0284c7; }
+html.light .text-amber-400 { color: #d97706; }
+html.light .text-rose-400 { color: #e11d48; }
+html.light .bg-red-950\/40,
+html.light .bg-red-950\/50 { background: #fee2e2; }
