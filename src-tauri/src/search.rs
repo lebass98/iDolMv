@@ -50,9 +50,23 @@ pub async fn search_4k(app: AppHandle, artist: String, query: String, count: u32
             .args(if cfg!(windows) { &["--remote-components", "ejs:github"][..] } else { &[][..] })
             .arg(&query)
             .stdout(Stdio::piped())
-            .stderr(Stdio::null())
+            .stderr(Stdio::piped())
             .spawn()
             .map_err(|e| format!("yt-dlp 실행 실패: {e}"))?;
+
+        // yt-dlp가 뱉는 오류를 Status 로그에 그대로 남김 (원인 없이 "결과 0개"로 보이는 것 방지)
+        let stderr_app = app.clone();
+        let stderr = child.stderr.take().map(|err| {
+            std::thread::spawn(move || {
+                for line in BufReader::new(err).lines().map_while(Result::ok) {
+                    if line.trim().is_empty() {
+                        continue;
+                    }
+                    eprintln!("[yt-dlp] {line}");
+                    log(&stderr_app, format!("⚠️ yt-dlp: {line}"));
+                }
+            })
+        });
 
         let mut found = 0;
         let mut checked = 0;
@@ -61,10 +75,20 @@ pub async fn search_4k(app: AppHandle, artist: String, query: String, count: u32
             checked += 1;
             if let Some(video) = to_4k_result(&v) {
                 found += 1;
-                let _ = app.emit("search://result", ResultEvent { artist: artist.clone(), video });
+                if let Err(e) = app.emit("search://result", ResultEvent { artist: artist.clone(), video }) {
+                    eprintln!("!! search://result emit 실패: {e}");
+                }
             }
         }
-        let _ = child.wait();
+        let status = child.wait();
+        if let Some(h) = stderr {
+            let _ = h.join();
+        }
+        if let Ok(st) = status {
+            if !st.success() {
+                log(&app, format!("❌ yt-dlp 종료 코드 {:?}", st.code()));
+            }
+        }
         log(&app, format!("   {artist}: {checked}개 확인 → 4K {found}개"));
         Ok(found)
     })

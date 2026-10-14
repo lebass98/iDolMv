@@ -19,12 +19,32 @@ fn exe(name: &str) -> String {
     if cfg!(windows) { format!("{name}.exe") } else { name.to_string() }
 }
 
+/// 도구가 들어 있는 tools 폴더.
+///
+/// 개발 실행에서 tauri는 실행 파일 폴더를 리소스 폴더로 쓰는데, 그 판정이
+/// "exe의 상위 폴더 이름이 정확히 target"인지에 달려 있다. 그래서 .cargo/config.toml로
+/// target-dir 이름을 바꿔 두면 resource_dir()이 UnknownPath로 실패한다.
+/// 그 경우 실행 파일 폴더의 tools를 직접 본다.
+fn tools_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    if let Ok(dir) = app.path().resource_dir() {
+        let candidate = dir.join("tools");
+        if candidate.exists() {
+            return Ok(candidate);
+        }
+    }
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(Path::to_path_buf))
+        .ok_or_else(|| "실행 파일 위치를 알 수 없음".to_string())?;
+    let candidate = exe_dir.join("tools");
+    if candidate.exists() {
+        return Ok(candidate);
+    }
+    Err(format!("tools 폴더를 찾을 수 없음: {}", candidate.display()))
+}
+
 pub fn paths(app: &AppHandle) -> Result<ToolPaths, String> {
-    let dir = app
-        .path()
-        .resource_dir()
-        .map_err(|e| format!("리소스 폴더를 찾을 수 없음: {e}"))?
-        .join("tools");
+    let dir = tools_dir(app)?;
     let p = ToolPaths {
         ytdlp: dir.join("yt-dlp").join(exe("yt-dlp")),
         ffmpeg: dir.join(exe("ffmpeg")),

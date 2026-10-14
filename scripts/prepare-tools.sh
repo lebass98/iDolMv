@@ -7,8 +7,17 @@ VENV="$HOME/.venvs/ytdl"
 OUT="$HOME/build/yttools/out"
 WORK="$HOME/build/yttools"
 
+# 사용 가능한 python3 자동 탐지 (3.12 이상 선호)
+pick_python() {
+  for c in /opt/homebrew/bin/python3.12 /opt/homebrew/bin/python3.13 \
+           /opt/homebrew/bin/python3.14 /usr/bin/python3 "$(command -v python3 || true)"; do
+    [ -x "$c" ] && { echo "$c"; return; }
+  done
+  echo "python3를 찾을 수 없습니다." >&2; exit 1
+}
+
 if [ ! -x "$VENV/bin/python" ]; then
-  /opt/homebrew/bin/python3.12 -m venv "$VENV"
+  "$(pick_python)" -m venv "$VENV"
 fi
 "$VENV/bin/pip" install -q --upgrade pip "yt-dlp[default]" imageio-ffmpeg deno pyinstaller
 

@@ -20,7 +20,7 @@ export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
 echo "▶ 소스 동기화 → $WORK"
 mkdir -p "$WORK"
 COPYFILE_DISABLE=1 rsync -a --delete \
-  --exclude node_modules --exclude dist --exclude "._*" --exclude ".DS_Store" \
+  --exclude node_modules --exclude dist --exclude dist-apps --exclude "._*" --exclude ".DS_Store" \
   --exclude "src-tauri/gen/android" --exclude "src-tauri/target" \
   "$SRC/" "$WORK/"
 

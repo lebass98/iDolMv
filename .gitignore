@@ -20,3 +20,6 @@ plugins/*/permissions/schemas/
 
 # 윈도우 도구 (빌드 때 scripts/prepare-tools-win.ps1로 받음)
 src-tauri/tools-win/
+
+# 플랫폼별 빌드 결과물(배포용, git 추적 안 함)
+dist-apps/

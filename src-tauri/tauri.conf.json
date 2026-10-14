@@ -39,7 +39,7 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "/Users/kmac4_home/build/yttools/out/": "tools/"
+      "/Users/ijaegwang/build/yttools/out/": "tools/"
     },
     "macOS": {
       "minimumSystemVersion": "12.0"

@@ -3,7 +3,7 @@
   "bundle": {
     "targets": ["nsis"],
     "resources": {
-      "/Users/kmac4_home/build/yttools/out/": null,
+      "/Users/ijaegwang/build/yttools/out/": null,
       "tools-win/": "tools/"
     },
     "windows": {
