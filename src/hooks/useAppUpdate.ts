@@ -32,6 +32,8 @@ export interface AppUpdateState {
   currentVersion: string;
   /** manual이면 "최신입니다"도 알려 준다. 자동 확인은 조용히 지나간다. */
   check: (manual?: boolean) => Promise<void>;
+  /** 이미 찾아 둔 새 버전 팝업을 다시 연다 (확인은 다시 하지 않는다) */
+  show: () => void;
   start: () => void;
   dismiss: () => void;
 }
@@ -82,6 +84,8 @@ export function useAppUpdate(): AppUpdateState {
       if (manual) setVisible(true);
     }
   }, []);
+
+  const show = useCallback(() => setVisible(true), []);
 
   const start = useCallback(() => {
     if (!release) return;
@@ -145,5 +149,5 @@ export function useAppUpdate(): AppUpdateState {
     };
   }, [phase, release]);
 
-  return { phase, release, progress, error, visible, currentVersion: version, check, start, dismiss };
+  return { phase, release, progress, error, visible, currentVersion: version, check, show, start, dismiss };
 }

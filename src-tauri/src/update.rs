@@ -116,6 +116,8 @@ pub async fn check_update(app: AppHandle) -> Result<Option<AppRelease>, String> 
         .map_err(|_| "인터넷에 연결하지 못했어요.".to_string())?;
     if res.status() == reqwest::StatusCode::NOT_FOUND {
         // 정식 릴리스가 아직 없으면 최신인 것으로 본다.
+        // 왜 "최신"이라고 나오는지 알 수 있게 로그에는 남긴다 (pre-release만 있으면 여기로 온다).
+        log(&app, "릴리스가 아직 없어서 비교할 새 버전이 없습니다.");
         return Ok(None);
     }
     if !res.status().is_success() {
@@ -125,6 +127,10 @@ pub async fn check_update(app: AppHandle) -> Result<Option<AppRelease>, String> 
 
     let version = release.tag_name.trim_start_matches('v').to_string();
     if !is_newer(&version, current_version()) {
+        log(
+            &app,
+            format!("최신 버전입니다. (지금 {}, 릴리스 {version})", current_version()),
+        );
         return Ok(None);
     }
     let suffix = asset_suffix();

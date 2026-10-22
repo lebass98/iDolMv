@@ -136,12 +136,14 @@ export default function SettingsView(p: Props) {
           </Row>
           <Row title="앱 버전" desc={versionDesc(p.update)}>
             <button
-              onClick={() => void p.update.check(true)}
+              // 새 버전을 이미 찾아 둔 상태면 다시 확인하지 않고 팝업을 연다.
+              // (팝업의 '업데이트'를 눌러야 받기가 시작되므로, 여기서 check를 다시 부르면 제자리걸음이었다)
+              onClick={() => (p.update.release ? p.update.show() : void p.update.check(true))}
               disabled={busy(p.update)}
               className="btn-ghost flex items-center gap-1.5 px-4 py-2 text-sm font-semibold disabled:opacity-40"
             >
               {p.update.release ? <Download className="h-4 w-4" /> : <RefreshCw className={`h-4 w-4 ${p.update.phase === "checking" ? "animate-spin" : ""}`} />}
-              {p.update.phase === "checking" ? "확인 중…" : p.update.release ? "업데이트" : "업데이트 확인"}
+              {p.update.phase === "checking" ? "확인 중…" : p.update.release ? "새 버전 보기" : "업데이트 확인"}
             </button>
           </Row>
         </div>
