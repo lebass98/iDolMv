@@ -3,6 +3,9 @@ package com.local.ytdl
 import android.app.Activity
 import android.content.Intent
 import android.media.MediaScannerConnection
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 import app.tauri.annotation.Command
@@ -199,6 +202,57 @@ class YtdlPlugin(private val activity: Activity) : Plugin(activity) {
         val names = JSArray()
         File(args.folder).listFiles()?.forEach { names.put(it.name) }
         invoke.resolve(obj("files" to names))
+    }
+
+    /**
+     * 내려받은 APK로 패키지 설치 화면을 띄운다.
+     * APK 파일은 다른 앱(패키지 설치 관리자)이 읽어야 하므로 file:// 대신 content:// 주소로 건네고,
+     * 그 주소를 읽을 권한을 함께 준다(FLAG_GRANT_READ_URI_PERMISSION).
+     */
+    @Command
+    fun installApk(invoke: Invoke) {
+        val args = invoke.parseArgs(PathArgs::class.java)
+        try {
+            val file = File(args.path)
+            if (!file.exists()) {
+                invoke.reject("내려받은 설치 파일을 찾지 못했어요.")
+                return
+            }
+            // '출처를 알 수 없는 앱 설치'가 꺼져 있으면 설치 화면이 그냥 닫힌다 → 먼저 알려 준다.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                !activity.packageManager.canRequestPackageInstalls()
+            ) {
+                openUnknownSources()
+                invoke.reject("이 앱의 '출처를 알 수 없는 앱 설치'를 허용한 뒤 다시 눌러 주세요.")
+                return
+            }
+            val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.fileprovider", file)
+            val intent = Intent(Intent.ACTION_VIEW)
+                .setDataAndType(uri, "application/vnd.android.package-archive")
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            activity.startActivity(intent)
+            invoke.resolve(obj())
+        } catch (e: Exception) {
+            invoke.reject("설치를 시작하지 못했어요: ${e.message}")
+        }
+    }
+
+    /** '출처를 알 수 없는 앱 설치' 허용 화면을 연다. 설치가 막혔을 때 안내한다. */
+    @Command
+    fun openInstallSettings(invoke: Invoke) {
+        try {
+            openUnknownSources()
+            invoke.resolve(obj())
+        } catch (e: Exception) {
+            invoke.reject("설정 화면을 열 수 없어요: ${e.message}")
+        }
+    }
+
+    private fun openUnknownSources() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${activity.packageName}"))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        activity.startActivity(intent)
     }
 
     @Command

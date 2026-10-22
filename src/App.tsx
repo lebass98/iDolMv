@@ -6,6 +6,8 @@ import { Disc3, Download, FolderOpen, History, ListMusic, Moon, Play, Search, Se
 import { cancelDownload, initEngine, isAndroid, isMac, revealFile, search4k, startDownload } from "./backend";
 import HistoryView, { type HistoryItem } from "./components/HistoryView";
 import SettingsView from "./components/SettingsView";
+import UpdateModal from "./components/UpdateModal";
+import { useAppUpdate } from "./hooks/useAppUpdate";
 import ChartPanel, { visibleArtists, type ArtistSort } from "./components/ChartPanel";
 import SongPanel, { songKey, visibleSongs, type SongSort } from "./components/SongPanel";
 import ResultsPanel, { sortResults, type MvSort } from "./components/ResultsPanel";
@@ -67,6 +69,9 @@ export default function App() {
 
   const [tab, setTab] = useState<Tab>("song");
   const [view, setView] = useState<View>("download");
+
+  // 새 버전 확인·설치 (앱을 켤 때와 창으로 돌아올 때 자동, 설정에서 직접도 가능)
+  const update = useAppUpdate();
 
   // 검색 개수 (설정): 가수당 / 곡당
   const [counts, setCounts] = useState<{ artist: number; song: number }>(() => {
@@ -544,6 +549,7 @@ export default function App() {
       }}
       onChangeFolder={chooseFolder}
       onCounts={setCounts}
+      update={update}
     />
   );
 
@@ -612,6 +618,7 @@ export default function App() {
             );
           })}
         </nav>
+        <UpdateModal u={update} />
       </div>
     );
   }
@@ -708,6 +715,8 @@ export default function App() {
           </>
         )}
       </div>
+
+      <UpdateModal u={update} />
     </div>
   );
 }

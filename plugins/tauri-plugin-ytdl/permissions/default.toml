@@ -7,4 +7,6 @@ permissions = [
   "allow-cancel",
   "allow-list-files",
   "allow-open-file",
+  "allow-install-apk",
+  "allow-open-install-settings",
 ]

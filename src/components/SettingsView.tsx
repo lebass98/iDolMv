@@ -1,5 +1,6 @@
-import { FolderOpen, Moon, Sun } from "lucide-react";
+import { Download, FolderOpen, Moon, RefreshCw, Sun } from "lucide-react";
 import type { ReactNode } from "react";
+import type { AppUpdateState } from "../hooks/useAppUpdate";
 
 interface Counts {
   artist: number;
@@ -16,6 +17,7 @@ interface Props {
   canChangeFolder: boolean;
   onChangeFolder: () => void;
   onCounts: (c: Counts) => void;
+  update: AppUpdateState;
 }
 
 function Row({ title, desc, children }: { title: string; desc: string; children: ReactNode }) {
@@ -76,6 +78,19 @@ function NumberStepper({ value, min, max, onChange }: { value: number; min: numb
   );
 }
 
+/** 업데이트 중에는 확인 버튼을 막는다. */
+function busy(u: AppUpdateState) {
+  return u.phase === "checking" || u.phase === "downloading" || u.phase === "installing";
+}
+
+/** 버전 줄에 보일 설명 */
+function versionDesc(u: AppUpdateState) {
+  const now = u.currentVersion ? `현재 ${u.currentVersion}` : "버전 확인 중";
+  if (u.release) return `${now} · 새 버전 ${u.release.version}이 나왔어요`;
+  if (u.phase === "error" && u.error) return `${now} · ${u.error}`;
+  return `${now} · 눌러서 새 버전이 있는지 확인합니다`;
+}
+
 export default function SettingsView(p: Props) {
   return (
     <section className="panel flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -118,6 +133,16 @@ export default function SettingsView(p: Props) {
           </Row>
           <Row title="가수당 검색 개수" desc="아이돌차트 가수 한 명당 유튜브에서 확인할 영상 수입니다. 한 개에 약 2초 걸립니다.">
             <NumberStepper value={p.counts.artist} min={1} max={20} onChange={(n) => p.onCounts({ ...p.counts, artist: n })} />
+          </Row>
+          <Row title="앱 버전" desc={versionDesc(p.update)}>
+            <button
+              onClick={() => void p.update.check(true)}
+              disabled={busy(p.update)}
+              className="btn-ghost flex items-center gap-1.5 px-4 py-2 text-sm font-semibold disabled:opacity-40"
+            >
+              {p.update.release ? <Download className="h-4 w-4" /> : <RefreshCw className={`h-4 w-4 ${p.update.phase === "checking" ? "animate-spin" : ""}`} />}
+              {p.update.phase === "checking" ? "확인 중…" : p.update.release ? "업데이트" : "업데이트 확인"}
+            </button>
           </Row>
         </div>
       </div>

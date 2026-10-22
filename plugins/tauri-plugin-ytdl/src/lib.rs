@@ -101,9 +101,21 @@ async fn open_file<R: Runtime>(app: AppHandle<R>, path: String) -> Result<Value,
     run(&app, "openFile", serde_json::json!({ "path": path }))
 }
 
+/// 내려받은 APK로 패키지 설치 화면 띄우기 (앱 업데이트)
+#[command]
+async fn install_apk<R: Runtime>(app: AppHandle<R>, path: String) -> Result<Value, String> {
+    run(&app, "installApk", serde_json::json!({ "path": path }))
+}
+
+/// '출처를 알 수 없는 앱 설치' 허용 화면 열기 (설치가 막혔을 때)
+#[command]
+async fn open_install_settings<R: Runtime>(app: AppHandle<R>) -> Result<Value, String> {
+    run(&app, "openInstallSettings", serde_json::json!({}))
+}
+
 pub fn init_plugin<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("ytdl")
-        .invoke_handler(tauri::generate_handler![init, search, download, cancel, list_files, open_file])
+        .invoke_handler(tauri::generate_handler![init, search, download, cancel, list_files, open_file, install_apk, open_install_settings])
         .setup(|app, api| {
             #[cfg(target_os = "android")]
             {

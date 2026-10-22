@@ -15,6 +15,7 @@
 - **4K 검색:** yt-dlp로 검색한 뒤 포맷 목록에 2160p 이상이 있는 영상만 표시 (조회수·등록일·예상 크기, 다양한 정렬)
 - **다운로드:** 4K 영상 + 최고 음질을 ffmpeg로 병합(MP4/MKV), 대기열 순차 다운로드, 실시간 진행률·속도·남은 시간, 취소, 403 오류 자동 재시도
 - **이미 받은 영상 표시**, 다운로드 히스토리, 설정(테마·저장 위치·검색 개수)
+- **자동 업데이트:** 새 버전이 나오면 앱이 알려 주고, 앱 안에서 받아 설치까지 이어 줍니다 (맥·윈도우·안드로이드) → [docs/app-update.md](docs/app-update.md)
 - **다크 / 화이트 모드**
 
 ## 구조
@@ -23,16 +24,21 @@
 src/                       React + TypeScript + Tailwind 화면
   backend.ts               맥(Rust 명령) / 안드로이드(Kotlin 플러그인) 분기
   components/              차트·검색 결과·다운로드·히스토리·설정 패널
+  lib/app-update.ts        업데이트 명령 껍데기·버전 비교
+  hooks/useAppUpdate.ts    언제 확인하고 팝업을 띄울지
 src-tauri/src/
   chart.rs                 아이돌차트 스크래핑 (전체 페이지)
   circle.rs                써클차트 데이터 요청
   artists.rs               아티스트 장르 사전
   search.rs                yt-dlp 4K 검색 (맥)
   ytdlp.rs                 다운로드·취소·이미 받은 영상 확인 (맥)
+  update.rs                새 버전 확인·설치 파일 내려받기·설치 실행
 plugins/tauri-plugin-ytdl/ 안드로이드 다운로드 엔진 (youtubedl-android, Kotlin)
 scripts/
   prepare-tools.sh         맥 앱에 넣을 yt-dlp·ffmpeg·deno 준비
   android-build.sh         안드로이드 APK 빌드·서명
+  release.sh               버전 올리기 → 맥·안드로이드 빌드 → GitHub 릴리스
+  set-version.sh           세 파일의 버전을 한꺼번에 맞춤
 ```
 
 ## 빌드
@@ -70,6 +76,16 @@ bash scripts/android-build.sh debug    # 디버그
 
 윈도우 PC에서 직접 빌드할 때는 `pwsh scripts/prepare-tools-win.ps1` 후 `npx tauri build`.
 
+## 배포 (새 버전 내기)
+
+```bash
+bash scripts/release.sh 1.1.0 "차트 갱신 속도 개선"
+```
+
+버전을 세 파일에 맞추고, 맥 DMG와 안드로이드 APK를 빌드해 `v1.1.0` 릴리스로 올립니다.
+태그가 올라가면 Actions가 윈도우 설치 파일을 같은 릴리스에 붙입니다.
+기기의 앱은 이 릴리스를 보고 스스로 업데이트합니다. 자세한 내용은 [docs/app-update.md](docs/app-update.md).
+
 ## 참고
 
 - 받은 뮤직비디오는 저작권이 있으니 개인 소장 용도로만 쓰세요.
@@ -77,6 +93,13 @@ bash scripts/android-build.sh debug    # 디버그
 - 차트 사이트 구조가 바뀌면 `chart.rs` / `circle.rs`를 고쳐야 합니다.
 
 ## 변경 기록
+
+### 2026-10-22 (1.1.0)
+- 자동 업데이트: GitHub 릴리스를 보고 새 버전을 알려 주고, 앱 안에서 받아 설치까지 이어 줌
+  - 앱을 켤 때·창으로 돌아올 때 확인 (6시간 간격), 설정 → 앱 버전에서 직접 확인
+  - 안드로이드는 패키지 설치 화면, 맥은 DMG, 윈도우는 설치 파일 실행
+- `scripts/release.sh`로 버전 올리기·빌드·릴리스를 한 번에
+- 버전 태그를 올리면 Actions가 윈도우 설치 파일을 같은 릴리스에 붙임
 
 ### 2026-10-14 (윈도우)
 - 윈도우 지원: 탐색기에서 보기, taskkill로 취소, 실행 시 콘솔 창 숨김, `.exe` 도구 경로
