@@ -36,6 +36,8 @@ interface Props {
   results: FoundMv[];
   searching: string | null;
   selectedNames: string[];
+  /** 고른 게 없을 때 보여 줄 안내 (탭마다 다름) */
+  emptyHint: string;
   picked: Set<string>;
   queuedIds: Set<string>;
   downloadedIds: Set<string>;
@@ -54,7 +56,7 @@ export default function ResultsPanel(p: Props) {
     ? `'${p.searching}' 4K MV 검색 중…`
     : p.selectedNames.length
       ? `${p.selectedNames.length}개 선택: ${p.selectedNames.join(", ")}`
-      : "왼쪽에서 아이돌을 선택하세요";
+      : p.emptyHint;
 
   return (
     <section className="panel flex min-w-0 flex-1 flex-col overflow-hidden">

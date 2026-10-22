@@ -1,6 +1,10 @@
 //! yt-dlp로 유튜브 검색 → 실제 4K(2160p 이상) 포맷이 있는 영상만 골라냄
 //!
-//! 검색 결과는 한 개씩 확인되는 대로 이벤트로 보냄 (전부 끝날 때까지 기다리지 않음)
+//! 두 가지로 쓴다. 들어가는 대상만 다르고 4K 판정·결과 전달은 같다.
+//!   search_4k  검색어로 찾기        (ytsearchN:가수 MV 4K)
+//!   probe_4k   주소 하나를 확인하기 (플레이리스트에서 고른 영상)
+//!
+//! 결과는 한 개씩 확인되는 대로 이벤트로 보냄 (전부 끝날 때까지 기다리지 않음)
 //!   event "search://result"  { artist, video }
 
 use crate::{log, tools};
@@ -38,10 +42,25 @@ struct ResultEvent {
 /// artist 한 명 검색. 반환값 = 4K 영상 개수
 #[tauri::command]
 pub async fn search_4k(app: AppHandle, artist: String, query: String, count: u32) -> Result<u32, String> {
+    let target = format!("ytsearch{}:{}", count.clamp(1, 20), query);
+    run_json(app, artist, target).await
+}
+
+/// 영상 주소 하나를 확인. 4K면 search://result로 보낸다. 반환값 = 4K 영상 개수(0 또는 1)
+///
+/// 플레이리스트에서 고른 영상을 확인할 때 쓴다. 주소에 &list= 가 붙어 있어도
+/// --no-playlist 때문에 그 영상 하나만 본다.
+#[tauri::command]
+pub async fn probe_4k(app: AppHandle, label: String, url: String) -> Result<u32, String> {
+    run_json(app, label, url).await
+}
+
+/// yt-dlp -j 로 대상(검색어 또는 주소)을 확인하고 4K인 영상만 이벤트로 보냄
+async fn run_json(app: AppHandle, artist: String, target: String) -> Result<u32, String> {
     let t = tools::paths(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
-        let query = format!("ytsearch{}:{}", count.clamp(1, 20), query);
-        log(&app, format!("🔎 검색: \"{query}\""));
+        let query = target;
+        log(&app, format!("🔎 확인: \"{query}\""));
 
         let mut child = tools::command(&t.ytdlp)
             .args(["-j", "--no-warnings", "--no-playlist", "--ignore-errors"])

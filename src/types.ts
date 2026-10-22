@@ -47,6 +47,23 @@ export interface SongChart {
   fetchedAt: string;
 }
 
+/** 플레이리스트 안의 영상 하나 (목록만 — 4K인지는 고른 뒤 확인한다) */
+export interface PlaylistItem {
+  id: string;
+  url: string;
+  title: string;
+  channel: string;
+  duration: number | null;
+  thumbnail: string | null;
+}
+
+export interface PlaylistInfo {
+  title: string;
+  items: PlaylistItem[];
+  /** 너무 길어서 앞에서 끊었는지 */
+  truncated: boolean;
+}
+
 export interface MvResult {
   id: string;
   url: string;

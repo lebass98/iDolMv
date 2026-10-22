@@ -1,6 +1,7 @@
 mod chart;
 mod circle;
 mod artists;
+mod playlist;
 mod search;
 mod tools;
 mod update;
@@ -47,6 +48,8 @@ pub fn run() {
             chart::fetch_chart,
             circle::fetch_circle,
             search::search_4k,
+            search::probe_4k,
+            playlist::fetch_playlist,
             ytdlp::start_download,
             ytdlp::cancel_download,
             ytdlp::reveal_in_finder,

@@ -2,14 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Disc3, Download, FolderOpen, History, ListMusic, Moon, Play, Search, Settings, Sun, Users } from "lucide-react";
-import { cancelDownload, initEngine, isAndroid, isMac, revealFile, search4k, startDownload } from "./backend";
+import { Download, FolderOpen, History, ListMusic, Moon, Play, Search, Settings, Sun } from "lucide-react";
+import { cancelDownload, fetchPlaylist, initEngine, isAndroid, isMac, probe4k, revealFile, search4k, startDownload } from "./backend";
 import HistoryView, { type HistoryItem } from "./components/HistoryView";
 import SettingsView from "./components/SettingsView";
 import UpdateModal from "./components/UpdateModal";
 import { useAppUpdate } from "./hooks/useAppUpdate";
 import ChartPanel, { visibleArtists, type ArtistSort } from "./components/ChartPanel";
 import SongPanel, { songKey, visibleSongs, type SongSort } from "./components/SongPanel";
+import PlaylistPanel, { visibleItems } from "./components/PlaylistPanel";
 import ResultsPanel, { sortResults, type MvSort } from "./components/ResultsPanel";
 import QueuePanel from "./components/QueuePanel";
 import type {
@@ -22,6 +23,7 @@ import type {
   ProgressEvent,
   SearchResultEvent,
   MvResult,
+  PlaylistInfo,
   SongChart,
 } from "./types";
 
@@ -32,7 +34,16 @@ const HISTORY_KEY = "idolHistory";
 const COUNT_KEY = "idolSearchCounts";
 const MAX_AUTO_RETRY = 2; // 403 오류 자동 재시도 횟수
 
-type Tab = "song" | "artist";
+type Tab = "song" | "artist" | "playlist";
+
+/**
+ * 4K 검색에 넣을 대상.
+ *   query 차트 탭 — 검색어로 유튜브에서 찾는다
+ *   url   플레이리스트 탭 — 주소를 받았으니 그 영상만 확인한다
+ */
+type SearchTarget =
+  | { kind: "query"; label: string; query: string; count: number }
+  | { kind: "url"; label: string; url: string };
 type View = "download" | "history" | "settings";
 type Theme = "dark" | "light";
 
@@ -115,6 +126,14 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
+  // 플레이리스트 (주소로 불러온 목록)
+  const [plUrl, setPlUrl] = useState("");
+  const [plInfo, setPlInfo] = useState<PlaylistInfo | null>(null);
+  const [plLoading, setPlLoading] = useState(false);
+  const [plError, setPlError] = useState("");
+  const [plQuery, setPlQuery] = useState("");
+  const [plSelected, setPlSelected] = useState<Set<string>>(new Set());
+
   // 검색
   const [results, setResults] = useState<FoundMv[]>([]);
   const [searching, setSearching] = useState<string | null>(null);
@@ -157,6 +176,27 @@ export default function App() {
       setSongLoading(false);
     }
   }, [addLog]);
+
+  const loadPlaylist = useCallback(async () => {
+    const url = plUrl.trim();
+    if (!url) return;
+    setPlLoading(true);
+    setPlError("");
+    try {
+      const info = await fetchPlaylist(url);
+      setPlInfo(info);
+      // 목록이 바뀌면 전에 고른 것은 지운다 (id가 겹칠 수 있어 섞이면 헷갈린다)
+      setPlSelected(new Set());
+      setPlQuery("");
+      addLog(`🎵 플레이리스트 "${info.title}": ${info.items.length}개`);
+    } catch (e) {
+      setPlInfo(null);
+      setPlError(String(e));
+      addLog(`⚠️ 플레이리스트: ${e}`);
+    } finally {
+      setPlLoading(false);
+    }
+  }, [plUrl, addLog]);
 
   useEffect(() => {
     loadSongs("week");
@@ -292,15 +332,31 @@ export default function App() {
     [songChart, selectedSongs, songSort],
   );
 
-  // 검색 대상: 곡 탭 → "가수 곡명 MV 4K" / 가수 탭 → "가수 MV 4K"
-  const targets =
+  const selectedPlaylistItems = useMemo(
+    () => (plInfo?.items ?? []).filter((e) => plSelected.has(e.id)),
+    [plInfo, plSelected],
+  );
+
+  // 검색 대상
+  //   곡 탭          → "가수 곡명 MV 4K" 로 찾기
+  //   가수 탭        → "가수 MV 4K" 로 찾기
+  //   플레이리스트 탭 → 고른 영상의 주소를 그대로 확인 (찾을 필요가 없다)
+  const targets: SearchTarget[] =
     tab === "song"
       ? selectedSongEntries.map((e) => ({
+          kind: "query" as const,
           label: `${e.artist} - ${e.song}`,
           query: `${e.searchArtist} ${e.song} MV 4K`,
           count: counts.song,
         }))
-      : selectedEntries.map((e) => ({ label: e.name, query: `${e.searchName} MV 4K`, count: counts.artist }));
+      : tab === "artist"
+        ? selectedEntries.map((e) => ({
+            kind: "query" as const,
+            label: e.name,
+            query: `${e.searchName} MV 4K`,
+            count: counts.artist,
+          }))
+        : selectedPlaylistItems.map((e) => ({ kind: "url" as const, label: e.title, url: e.url }));
 
   async function searchSelected() {
     setResults([]);
@@ -308,7 +364,10 @@ export default function App() {
     for (const t of targets) {
       setSearching(t.label);
       try {
-        const n = await search4k(t.label, t.query, t.count, addResult);
+        const n =
+          t.kind === "url"
+            ? await probe4k(t.label, t.url, addResult)
+            : await search4k(t.label, t.query, t.count, addResult);
         if (isAndroid) addLog(`   ${t.label}: 4K ${n}개`);
       } catch (err) {
         addLog(`⚠️ ${t.label} 검색 실패: ${err}`);
@@ -366,30 +425,36 @@ export default function App() {
     { v: "history" as const, label: "히스토리", icon: History },
   ];
 
-  const selectedCount = tab === "song" ? selectedSongEntries.length : selectedEntries.length;
+  const selectedCount =
+    tab === "song"
+      ? selectedSongEntries.length
+      : tab === "artist"
+        ? selectedEntries.length
+        : selectedPlaylistItems.length;
 
   // ───────── 패널들 (넓은 화면·휴대폰 공통) ─────────
   const chartSection = (
     <section className="panel flex w-[330px] shrink-0 flex-col overflow-hidden">
-      <div className="field mx-4 mt-4 grid grid-cols-2 gap-1 !rounded-full p-1">
+      <div className="field mx-4 mt-4 grid grid-cols-3 gap-1 !rounded-full p-1">
         {(
           [
-            { v: "song", label: "써클차트 곡", icon: Disc3 },
-            { v: "artist", label: "아이돌차트 가수", icon: Users },
+            { v: "song", label: "써클차트" },
+            { v: "artist", label: "아이돌차트" },
+            { v: "playlist", label: "플레이리스트" },
           ] as const
         ).map((t) => (
           <button
             key={t.v}
             onClick={() => setTab(t.v)}
-            className={`flex items-center justify-center gap-1.5 rounded-full py-2 text-sm font-semibold transition ${
+            className={`whitespace-nowrap rounded-full py-2 text-[13px] font-semibold transition ${
               tab === t.v ? "btn-accent" : "text-fg/80 hover:text-fg"
             }`}
           >
-            <t.icon className="h-4 w-4" /> {t.label}
+            {t.label}
           </button>
         ))}
       </div>
-      {tab === "song" ? (
+      {tab === "song" && (
         <SongPanel
           chart={songChart}
           loading={songLoading}
@@ -422,7 +487,8 @@ export default function App() {
             })
           }
         />
-      ) : (
+      )}
+      {tab === "artist" && (
         <ChartPanel
           chart={chart}
           loading={chartLoading}
@@ -447,6 +513,33 @@ export default function App() {
             setSelected((s) => {
               const n = new Set(s);
               names.forEach((name) => (on ? n.add(name) : n.delete(name)));
+              return n;
+            })
+          }
+        />
+      )}
+      {tab === "playlist" && (
+        <PlaylistPanel
+          url={plUrl}
+          info={plInfo}
+          loading={plLoading}
+          error={plError}
+          query={plQuery}
+          selected={plSelected}
+          onUrl={setPlUrl}
+          onLoad={loadPlaylist}
+          onQuery={setPlQuery}
+          onToggle={(id) =>
+            setPlSelected((s) => {
+              const n = new Set(s);
+              n.has(id) ? n.delete(id) : n.add(id);
+              return n;
+            })
+          }
+          onSetMany={(ids, on) =>
+            setPlSelected((s) => {
+              const n = new Set(s);
+              ids.forEach((id) => (on ? n.add(id) : n.delete(id)));
               return n;
             })
           }
@@ -477,6 +570,13 @@ export default function App() {
       onSort={setMvSort}
       searching={searching}
       selectedNames={targets.map((t) => t.label)}
+      emptyHint={
+        tab === "playlist"
+          ? "플레이리스트에서 받을 곡을 고르세요"
+          : tab === "song"
+            ? "왼쪽에서 곡을 선택하세요"
+            : "왼쪽에서 아이돌을 선택하세요"
+      }
       picked={picked}
       queuedIds={queuedIds}
       downloadedIds={downloaded}

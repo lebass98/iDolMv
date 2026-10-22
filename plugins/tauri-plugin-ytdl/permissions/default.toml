@@ -3,6 +3,8 @@ description = "안드로이드 yt-dlp 플러그인의 모든 명령 허용"
 permissions = [
   "allow-init",
   "allow-search",
+  "allow-probe",
+  "allow-playlist",
   "allow-download",
   "allow-cancel",
   "allow-list-files",

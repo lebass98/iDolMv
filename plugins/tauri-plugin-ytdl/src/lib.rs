@@ -28,6 +28,13 @@ struct SearchArgs {
     on_event: Channel<Value>,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ProbeArgs {
+    url: String,
+    on_event: Channel<Value>,
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadReq {
@@ -76,6 +83,22 @@ async fn search<R: Runtime>(app: AppHandle<R>, query: String, count: u32, on_eve
         .map_err(|e| e.to_string())?
 }
 
+/// 영상 주소 하나를 확인 → JSON 한 줄을 on_event로 전달 (플레이리스트에서 고른 영상)
+#[command]
+async fn probe<R: Runtime>(app: AppHandle<R>, url: String, on_event: Channel<Value>) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || run(&app, "probe", ProbeArgs { url, on_event }))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// 플레이리스트 주소 → 안에 든 영상 목록 (포맷은 보지 않아 빠름)
+#[command]
+async fn playlist<R: Runtime>(app: AppHandle<R>, url: String) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || run(&app, "playlist", serde_json::json!({ "url": url })))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 /// 다운로드 → 진행률·완료·실패를 on_event로 전달
 #[command]
 async fn download<R: Runtime>(app: AppHandle<R>, req: DownloadReq, on_event: Channel<Value>) -> Result<Value, String> {
@@ -115,7 +138,7 @@ async fn open_install_settings<R: Runtime>(app: AppHandle<R>) -> Result<Value, S
 
 pub fn init_plugin<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("ytdl")
-        .invoke_handler(tauri::generate_handler![init, search, download, cancel, list_files, open_file, install_apk, open_install_settings])
+        .invoke_handler(tauri::generate_handler![init, search, probe, playlist, download, cancel, list_files, open_file, install_apk, open_install_settings])
         .setup(|app, api| {
             #[cfg(target_os = "android")]
             {

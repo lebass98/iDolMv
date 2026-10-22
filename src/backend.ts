@@ -6,7 +6,7 @@
 // 화면 코드는 이 파일의 함수만 부르고, 결과는 넘겨준 콜백으로 받음
 
 import { Channel, invoke } from "@tauri-apps/api/core";
-import type { MvResult } from "./types";
+import type { MvResult, PlaylistInfo, PlaylistItem } from "./types";
 
 export const isAndroid = /Android/i.test(navigator.userAgent);
 export const isWindows = /Windows/i.test(navigator.userAgent);
@@ -84,6 +84,49 @@ export async function search4k(
   };
   await invoke("plugin:ytdl|search", { query: `${query}`, count, onEvent: ch });
   return found;
+}
+
+/**
+ * 영상 주소 하나가 4K인지 확인. 4K면 onResult로 온다. 반환값 = 4K 영상 수(0 또는 1)
+ * 맥은 결과가 search://result 이벤트로, 안드로이드는 onResult 콜백으로 옴 — search4k와 같다.
+ */
+export async function probe4k(
+  label: string,
+  url: string,
+  onResult: (artist: string, video: MvResult) => void,
+): Promise<number> {
+  if (!isAndroid) return invoke<number>("probe_4k", { label, url });
+
+  let found = 0;
+  const ch = new Channel<{ type: string; line?: string }>();
+  ch.onmessage = (m) => {
+    if (m.type !== "json" || !m.line) return;
+    try {
+      const mv = to4k(JSON.parse(m.line));
+      if (mv) {
+        found++;
+        onResult(label, mv);
+      }
+    } catch {
+      /* JSON이 아닌 줄은 무시 */
+    }
+  };
+  await invoke("plugin:ytdl|probe", { url, onEvent: ch });
+  return found;
+}
+
+/** 플레이리스트 주소 → 안에 든 영상 목록 (포맷은 보지 않아 빠름) */
+export async function fetchPlaylist(url: string): Promise<PlaylistInfo> {
+  const raw = isAndroid
+    ? await invoke<PlaylistInfo>("plugin:ytdl|playlist", { url })
+    : await invoke<PlaylistInfo>("fetch_playlist", { url });
+  // 안드로이드(Kotlin)는 없는 값의 키를 아예 넣지 않으므로 null로 맞춰 둔다.
+  const items: PlaylistItem[] = (raw.items ?? []).map((it) => ({
+    ...it,
+    duration: it.duration ?? null,
+    thumbnail: it.thumbnail ?? null,
+  }));
+  return { title: raw.title ?? "플레이리스트", items, truncated: !!raw.truncated };
 }
 
 /** 다운로드 시작. 맥은 즉시 반환(이벤트로 진행), 안드로이드는 끝날 때까지 기다리며 콜백 호출 */

@@ -45,6 +45,17 @@ class IdArgs {
 }
 
 @InvokeArg
+class ProbeArgs {
+    lateinit var url: String
+    lateinit var onEvent: Channel
+}
+
+@InvokeArg
+class UrlArgs {
+    lateinit var url: String
+}
+
+@InvokeArg
 class FolderArgs {
     lateinit var folder: String
 }
@@ -132,6 +143,122 @@ class YtdlPlugin(private val activity: Activity) : Plugin(activity) {
                 invoke.reject(e.message ?: e.toString())
             }
         }.start()
+    }
+
+    /**
+     * 영상 주소 하나를 확인해 JSON 한 줄을 그대로 보낸다. 4K 판정은 화면(backend.ts의 to4k)이 한다.
+     * 플레이리스트에서 고른 영상을 확인할 때 쓴다. --no-playlist 때문에 &list= 가 붙어도 그 영상만 본다.
+     */
+    @Command
+    fun probe(invoke: Invoke) {
+        val args = invoke.parseArgs(ProbeArgs::class.java)
+        Thread {
+            try {
+                ensureReady()
+                val req = YoutubeDLRequest(args.url).common()
+                req.addOption("-j")
+                req.addOption("--no-warnings")
+                req.addOption("--ignore-errors")
+                var found = 0
+                val resp = YoutubeDL.getInstance().execute(req, null) { _, _, line ->
+                    if (line.startsWith("{")) {
+                        found++
+                        val ev = JSObject()
+                        ev.put("type", "json")
+                        ev.put("line", line)
+                        args.onEvent.send(ev)
+                    }
+                }
+                // 콜백으로 못 받은 줄이 있으면 최종 출력에서 보충
+                if (found == 0) {
+                    resp.out.lineSequence().filter { it.startsWith("{") }.forEach {
+                        val ev = JSObject()
+                        ev.put("type", "json")
+                        ev.put("line", it)
+                        args.onEvent.send(ev)
+                        found++
+                    }
+                }
+                invoke.resolve(obj("count" to found))
+            } catch (e: Exception) {
+                invoke.reject(e.message ?: e.toString())
+            }
+        }.start()
+    }
+
+    /**
+     * 플레이리스트 주소 → 안에 든 영상 목록 (--flat-playlist, 포맷은 보지 않아 빠름).
+     * 돌려주는 모양은 맥의 fetch_playlist와 같다: { title, items[], truncated }
+     */
+    @Command
+    fun playlist(invoke: Invoke) {
+        val args = invoke.parseArgs(UrlArgs::class.java)
+        Thread {
+            try {
+                ensureReady()
+                val req = YoutubeDLRequest(args.url)
+                req.addOption("--flat-playlist")
+                req.addOption("-J")
+                req.addOption("--no-warnings")
+                req.addOption("--ignore-errors")
+                req.addOption("-I", ":$MAX_PLAYLIST_ITEMS")
+                req.addOption("--remote-components", "ejs:github")
+                val resp = YoutubeDL.getInstance().execute(req)
+                val root = JSONObject(resp.out.trim())
+
+                val items = JSArray()
+                val entries = root.optJSONArray("entries")
+                if (entries != null) {
+                    for (i in 0 until entries.length()) {
+                        toItem(entries.optJSONObject(i))?.let { items.put(it) }
+                    }
+                } else {
+                    toItem(root)?.let { items.put(it) }
+                }
+                if (items.length() == 0) {
+                    invoke.reject("목록에 받을 수 있는 영상이 없어요.")
+                    return@Thread
+                }
+                invoke.resolve(
+                    obj(
+                        "title" to root.optString("title", "플레이리스트"),
+                        "items" to items,
+                        "truncated" to (items.length() >= MAX_PLAYLIST_ITEMS),
+                    )
+                )
+            } catch (e: Exception) {
+                // yt-dlp 오류 중 ERROR: 줄만 골라서 전달 (비공개·삭제된 목록 등)
+                val msg = (e.message ?: e.toString()).lines().lastOrNull { it.contains("ERROR:") }
+                    ?.substringAfter("ERROR:")?.trim() ?: "목록을 가져오지 못했어요."
+                invoke.reject(msg)
+            }
+        }.start()
+    }
+
+    /** --flat-playlist 항목 한 개 → 화면이 쓰는 모양. 비공개·삭제된 영상은 걸러낸다. */
+    private fun toItem(v: JSONObject?): JSObject? {
+        if (v == null) return null
+        val id = v.optString("id").ifEmpty { return null }
+        val title = v.optString("title").ifEmpty { "제목 없음" }
+        if (title.startsWith("[Private") || title.startsWith("[Deleted") || title.startsWith("[Unavailable")) return null
+
+        val url = v.optString("url").ifEmpty { v.optString("webpage_url") }
+            .ifEmpty { "https://www.youtube.com/watch?v=$id" }
+        // flat 목록은 thumbnail 하나가 아니라 thumbnails 배열로 올 때가 많다.
+        val thumb = v.optString("thumbnail").ifEmpty {
+            v.optJSONArray("thumbnails")?.let { list ->
+                if (list.length() > 0) list.optJSONObject(list.length() - 1)?.optString("url") ?: "" else ""
+            } ?: ""
+        }
+        // 없는 값은 키를 아예 넣지 않는다. 화면(backend.ts)이 undefined를 null로 바꿔 쓴다.
+        val item = JSObject()
+        item.put("id", id)
+        item.put("url", url)
+        item.put("title", title)
+        item.put("channel", v.optString("channel").ifEmpty { v.optString("uploader") })
+        if (v.has("duration") && !v.isNull("duration")) item.put("duration", v.optDouble("duration"))
+        if (thumb.isNotEmpty()) item.put("thumbnail", thumb)
+        return item
     }
 
     @Command
@@ -271,6 +398,9 @@ class YtdlPlugin(private val activity: Activity) : Plugin(activity) {
         }
     }
 }
+
+/** 채널 주소를 넣으면 수천 개가 나올 수 있어 앞에서 끊는다. (맥 playlist.rs의 MAX_ITEMS와 같은 값) */
+private const val MAX_PLAYLIST_ITEMS = 300
 
 /** JSObject 한 줄로 만들기 */
 private fun obj(vararg pairs: Pair<String, Any?>): JSObject {
