@@ -679,12 +679,21 @@ export default function App() {
     ];
     return (
       <div className={`app-bg flex h-screen flex-col ${isAndroid ? "pt-[max(env(safe-area-inset-top),28px)]" : ""}`}>
-        <div className="flex h-14 shrink-0 items-center gap-2.5 px-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent shadow-md shadow-accent/30">
+        {/* 제목줄: 창 이동용. 맥은 왼쪽에 신호등 버튼 자리를 비워 둔다 (titleBarStyle: Overlay) */}
+        <div
+          data-tauri-drag-region
+          className={`flex h-14 shrink-0 items-center gap-2.5 pr-4 ${isMac ? "pl-[88px]" : "pl-4"}`}
+        >
+          <div
+            data-tauri-drag-region
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent shadow-md shadow-accent/30"
+          >
             <Play className="ml-0.5 h-4 w-4 fill-white text-white" />
           </div>
-          <span className="truncate text-[17px] font-bold">Idol MV 4K</span>
-          <div className="ml-auto">{themeToggle}</div>
+          <span data-tauri-drag-region className="truncate text-[17px] font-bold">
+            Idol MV 4K
+          </span>
+          <div className="ml-auto shrink-0">{themeToggle}</div>
         </div>
 
         {/* 고정 폭(w-[330px] 등)을 휴대폰에서는 꽉 채움 */}
